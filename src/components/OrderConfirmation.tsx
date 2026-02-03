@@ -1,7 +1,10 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { Check, Printer, X } from 'lucide-react';
 import { Order } from '@/context/POSContext';
 import { formatPrice } from '@/data/menuData';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { usePOS } from '@/context/POSContext';
 
 interface OrderConfirmationProps {
   order: Order;
@@ -10,6 +13,12 @@ interface OrderConfirmationProps {
 
 const OrderConfirmation: React.FC<OrderConfirmationProps> = ({ order, onClose }) => {
   const receiptRef = useRef<HTMLDivElement>(null);
+  const { applyDiscountToOrder, orders } = usePOS();
+  
+  // Get the latest order data from context (in case discount was applied)
+  const currentOrder = orders.find(o => o.id === order.id) || order;
+  
+  const [discountEnabled, setDiscountEnabled] = useState(currentOrder.discountPercent > 0);
 
   const formatTime = (date: Date) => {
     return new Intl.DateTimeFormat('en-IN', {
@@ -27,6 +36,11 @@ const OrderConfirmation: React.FC<OrderConfirmationProps> = ({ order, onClose })
     }).format(date);
   };
 
+  const handleDiscountToggle = (checked: boolean) => {
+    setDiscountEnabled(checked);
+    applyDiscountToOrder(order.id, checked ? 10 : 0);
+  };
+
   const handlePrint = () => {
     const printContent = receiptRef.current;
     if (!printContent) return;
@@ -38,7 +52,7 @@ const OrderConfirmation: React.FC<OrderConfirmationProps> = ({ order, onClose })
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Receipt - ${order.id}</title>
+          <title>Receipt - ${currentOrder.id}</title>
           <style>
             body {
               font-family: 'Courier New', monospace;
@@ -50,30 +64,41 @@ const OrderConfirmation: React.FC<OrderConfirmationProps> = ({ order, onClose })
             .divider { border-top: 1px dashed #000; margin: 10px 0; }
             .item { display: flex; justify-content: space-between; margin: 5px 0; }
             .total { font-weight: bold; font-size: 1.2em; margin-top: 10px; }
+            .discount { color: #16a34a; }
             .footer { text-align: center; margin-top: 20px; font-size: 0.9em; }
           </style>
         </head>
         <body>
           <div class="header">
             <h2>M² Maggie × Momos</h2>
-            <p>Order #${order.id}</p>
-            <p>${formatDate(order.timestamp)} at ${formatTime(order.timestamp)}</p>
+            <p>Order #${currentOrder.id}</p>
+            <p>${formatDate(currentOrder.timestamp)} at ${formatTime(currentOrder.timestamp)}</p>
           </div>
           <div class="divider"></div>
-          ${order.items.map(item => `
+          ${currentOrder.items.map(item => `
             <div class="item">
               <span>${item.menuItem.name}${item.cookingStyle ? ` (${item.cookingStyle})` : ''} × ${item.quantity}</span>
               <span>₹${item.menuItem.price * item.quantity}</span>
             </div>
           `).join('')}
           <div class="divider"></div>
+          <div class="item">
+            <span>Subtotal</span>
+            <span>₹${currentOrder.subtotal}</span>
+          </div>
+          ${currentOrder.discountPercent > 0 ? `
+            <div class="item discount">
+              <span>Discount (${currentOrder.discountPercent}%)</span>
+              <span>-₹${currentOrder.discountAmount}</span>
+            </div>
+          ` : ''}
           <div class="item total">
             <span>TOTAL</span>
-            <span>₹${order.total}</span>
+            <span>₹${currentOrder.total}</span>
           </div>
-          <p>Payment: ${order.paymentMethod.toUpperCase()}</p>
-          ${order.customerName ? `<p>Customer: ${order.customerName}</p>` : ''}
-          ${order.customerPhone ? `<p>Phone: ${order.customerPhone}</p>` : ''}
+          <p>Payment: ${currentOrder.paymentMethod.toUpperCase()}</p>
+          ${currentOrder.customerName ? `<p>Customer: ${currentOrder.customerName}</p>` : ''}
+          ${currentOrder.customerPhone ? `<p>Phone: ${currentOrder.customerPhone}</p>` : ''}
           <div class="footer">
             <p>Thank you for your order!</p>
             <p>Visit us again ❤️</p>
@@ -117,16 +142,16 @@ const OrderConfirmation: React.FC<OrderConfirmationProps> = ({ order, onClose })
           <h3 className="font-display text-2xl font-bold text-foreground mb-1">
             Order Confirmed!
           </h3>
-          <p className="text-primary font-semibold text-lg">{order.id}</p>
+          <p className="text-primary font-semibold text-lg">{currentOrder.id}</p>
           <p className="text-muted-foreground text-sm">
-            {formatDate(order.timestamp)} at {formatTime(order.timestamp)}
+            {formatDate(currentOrder.timestamp)} at {formatTime(currentOrder.timestamp)}
           </p>
         </div>
 
         {/* Order details */}
         <div className="bg-muted/50 rounded-xl p-4 mb-4">
           <div className="space-y-2">
-            {order.items.map((item, index) => (
+            {currentOrder.items.map((item, index) => (
               <div key={index} className="flex justify-between text-sm">
                 <span className="text-foreground">
                   {item.menuItem.name}
@@ -140,28 +165,55 @@ const OrderConfirmation: React.FC<OrderConfirmationProps> = ({ order, onClose })
             ))}
           </div>
           
-          <div className="border-t border-border mt-3 pt-3 flex justify-between">
-            <span className="font-semibold text-foreground">Total</span>
-            <span className="font-bold text-xl text-gradient">{formatPrice(order.total)}</span>
+          {/* Subtotal, Discount, Total */}
+          <div className="border-t border-border mt-3 pt-3 space-y-2">
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Subtotal</span>
+              <span className="font-medium">{formatPrice(currentOrder.subtotal)}</span>
+            </div>
+            
+            {currentOrder.discountPercent > 0 && (
+              <div className="flex justify-between text-sm text-emerald-600">
+                <span>Discount ({currentOrder.discountPercent}%)</span>
+                <span className="font-medium">-{formatPrice(currentOrder.discountAmount)}</span>
+              </div>
+            )}
+            
+            <div className="flex justify-between pt-2 border-t border-border">
+              <span className="font-semibold text-foreground">Final Total</span>
+              <span className="font-bold text-xl text-gradient">{formatPrice(currentOrder.total)}</span>
+            </div>
           </div>
+        </div>
+
+        {/* Discount Toggle */}
+        <div className="flex items-center justify-between bg-muted/30 rounded-xl p-3 mb-4 border border-border">
+          <Label htmlFor="discount-toggle" className="text-sm font-medium text-foreground cursor-pointer">
+            Apply 10% Discount
+          </Label>
+          <Switch
+            id="discount-toggle"
+            checked={discountEnabled}
+            onCheckedChange={handleDiscountToggle}
+          />
         </div>
 
         {/* Payment info */}
         <div className="flex items-center justify-center gap-2 mb-4">
           <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-            order.paymentMethod === 'cash' 
+            currentOrder.paymentMethod === 'cash' 
               ? 'bg-emerald-100 text-emerald-700' 
               : 'bg-violet-100 text-violet-700'
           }`}>
-            Paid via {order.paymentMethod.toUpperCase()}
+            Paid via {currentOrder.paymentMethod.toUpperCase()}
           </span>
         </div>
 
         {/* Customer info */}
-        {(order.customerName || order.customerPhone) && (
+        {(currentOrder.customerName || currentOrder.customerPhone) && (
           <div className="text-center text-sm text-muted-foreground mb-4">
-            {order.customerName && <p>Customer: {order.customerName}</p>}
-            {order.customerPhone && <p>Phone: {order.customerPhone}</p>}
+            {currentOrder.customerName && <p>Customer: {currentOrder.customerName}</p>}
+            {currentOrder.customerPhone && <p>Phone: {currentOrder.customerPhone}</p>}
           </div>
         )}
 

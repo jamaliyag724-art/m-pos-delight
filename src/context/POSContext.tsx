@@ -12,6 +12,9 @@ export interface BillItem {
 export interface Order {
   id: string;
   items: BillItem[];
+  subtotal: number;
+  discountPercent: number;
+  discountAmount: number;
   total: number;
   customerName: string;
   customerPhone: string;
@@ -37,7 +40,8 @@ type POSAction =
   | { type: 'SET_CUSTOMER_PHONE'; payload: string }
   | { type: 'ADD_ORDER'; payload: Order }
   | { type: 'LOAD_ORDERS'; payload: Order[] }
-  | { type: 'CLEAR_ALL_DATA' };
+  | { type: 'CLEAR_ALL_DATA' }
+  | { type: 'UPDATE_ORDER_DISCOUNT'; payload: { orderId: string; discountPercent: number } };
 
 const generateBillItemId = (menuItemId: string, cookingStyle: CookingStyle): string => {
   return `${menuItemId}-${cookingStyle || 'default'}-${Date.now()}`;
@@ -121,6 +125,25 @@ const posReducer = (state: POSState, action: POSAction): POSState => {
         customerPhone: '',
       };
 
+    case 'UPDATE_ORDER_DISCOUNT': {
+      const { orderId, discountPercent } = action.payload;
+      return {
+        ...state,
+        orders: state.orders.map((order) => {
+          if (order.id === orderId) {
+            const discountAmount = Math.round(order.subtotal * (discountPercent / 100));
+            return {
+              ...order,
+              discountPercent,
+              discountAmount,
+              total: order.subtotal - discountAmount,
+            };
+          }
+          return order;
+        }),
+      };
+    }
+
     default:
       return state;
   }
@@ -141,10 +164,11 @@ interface POSContextType extends POSState {
   clearBill: () => void;
   setCustomerName: (name: string) => void;
   setCustomerPhone: (phone: string) => void;
-  processPayment: (method: 'cash' | 'upi') => Order;
+  processPayment: (method: 'cash' | 'upi', discountPercent?: number) => Order;
   getBillTotal: () => number;
   setMenuItems: (items: MenuItem[]) => void;
   clearAllData: () => void;
+  applyDiscountToOrder: (orderId: string, discountPercent: number) => void;
 }
 
 const POSContext = createContext<POSContextType | undefined>(undefined);
@@ -234,11 +258,18 @@ export const POSProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     );
   };
 
-  const processPayment = (method: 'cash' | 'upi'): Order => {
+  const processPayment = (method: 'cash' | 'upi', discountPercent: number = 0): Order => {
+    const subtotal = getBillTotal();
+    const discountAmount = Math.round(subtotal * (discountPercent / 100));
+    const total = subtotal - discountAmount;
+
     const order: Order = {
       id: generateOrderId(),
       items: [...state.billItems],
-      total: getBillTotal(),
+      subtotal,
+      discountPercent,
+      discountAmount,
+      total,
       customerName: state.customerName,
       customerPhone: state.customerPhone,
       paymentMethod: method,
@@ -249,6 +280,10 @@ export const POSProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     dispatch({ type: 'CLEAR_BILL' });
 
     return order;
+  };
+
+  const applyDiscountToOrder = (orderId: string, discountPercent: number) => {
+    dispatch({ type: 'UPDATE_ORDER_DISCOUNT', payload: { orderId, discountPercent } });
   };
 
   const value: POSContextType = {
@@ -263,6 +298,7 @@ export const POSProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     getBillTotal,
     setMenuItems,
     clearAllData,
+    applyDiscountToOrder,
   };
 
   return <POSContext.Provider value={value}>{children}</POSContext.Provider>;
