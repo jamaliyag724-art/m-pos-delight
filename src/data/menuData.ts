@@ -45,7 +45,7 @@ export const defaultMenuItems: MenuItem[] = [
   },
   {
     id: 'jain-momos',
-    name: 'Jain Momos',
+    name: 'jain-momos"',
     price: 120,
     category: 'momos',
     pcs: 7,
