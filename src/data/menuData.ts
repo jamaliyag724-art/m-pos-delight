@@ -34,8 +34,8 @@ export const defaultMenuItems: MenuItem[] = [
     isJain: false,
   },
   {
-    id: 'Paneer Hakka Fusion Momos',
-    name: 'Paneer Hakka Fusion Momos',
+    id: 'Paneer Momos',
+    name:'Paneer Hakka Fusion Momos ⭐ Chef Special',
     price: 120,
     category: 'momos',
     pcs: 8,
