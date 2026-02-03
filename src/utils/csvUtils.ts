@@ -97,7 +97,7 @@ export const exportMenuToCSV = (items: MenuItem[]): string => {
 
 // Export orders to CSV
 export const exportOrdersToCSV = (orders: Order[]): string => {
-  const headers = ['Order ID', 'Date', 'Time', 'Items', 'Total', 'Payment Method', 'Customer Name', 'Customer Phone'];
+  const headers = ['Order ID', 'Date', 'Time', 'Items', 'Subtotal', 'Discount %', 'Discount Amount', 'Total', 'Payment Method', 'Customer Name', 'Customer Phone'];
   
   const rows = orders.map((order) => {
     const date = new Date(order.timestamp);
@@ -112,6 +112,9 @@ export const exportOrdersToCSV = (orders: Order[]): string => {
       dateStr,
       timeStr,
       `"${itemsStr}"`,
+      (order.subtotal ?? order.total).toString(),
+      (order.discountPercent ?? 0).toString(),
+      (order.discountAmount ?? 0).toString(),
       order.total.toString(),
       order.paymentMethod.toUpperCase(),
       order.customerName || '',

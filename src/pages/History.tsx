@@ -158,9 +158,19 @@ const History: React.FC = () => {
 
                   {/* Total */}
                   <div className="text-right">
+                    {order.discountPercent > 0 && (
+                      <div className="text-xs text-emerald-600 font-medium mb-1">
+                        {order.discountPercent}% off
+                      </div>
+                    )}
                     <span className="text-2xl font-bold text-gradient">
                       {formatPrice(order.total)}
                     </span>
+                    {order.discountPercent > 0 && (
+                      <div className="text-xs text-muted-foreground line-through">
+                        {formatPrice(order.subtotal)}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
