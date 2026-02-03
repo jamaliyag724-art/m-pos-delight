@@ -26,9 +26,9 @@ export const defaultMenuItems: MenuItem[] = [
   {
     id: 'masala-magic',
     name: 'Masala Magic Momos',
-    price: 100,
+    price: 99,
     category: 'momos',
-    pcs: 8,
+    pcs: 7,
     cookingStyles: ['Steam', 'Fried'],
     description: 'Spicy masala-infused momos',
     isJain: false,
